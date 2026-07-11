@@ -33,7 +33,7 @@ import TourForm from "./ToursForm";
 
 export type TourRow = Tour & { status: "active" | "inactive" };
 
-export function ToursPage() {
+export default function ToursPage() {
   const [rows, setRows] = useState<TourRow[]>(
     initialTours.map((t, i) => ({
       ...t,

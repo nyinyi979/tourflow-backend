@@ -6,16 +6,25 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
   useRouterState,
 } from "@tanstack/react-router";
-import { CalendarCheck, Compass, LayoutDashboard, Map, Settings, Star, Users } from "lucide-react";
+import {
+  CalendarCheck,
+  Compass,
+  LayoutDashboard,
+  Map,
+  Settings,
+  Star,
+  Users,
+} from "lucide-react";
 import "./index.css";
 import LayoutComponent from "./components/AdminLayout";
 import DashboardPage from "./components/dashboard/DashboardPage";
 import ActivitiesPage from "./components/acitivites/ActivitiesPage";
 import CustomersPage from "./components/customers/CustomersPage";
 import SettingPage from "./components/setting/SettingPage";
-import { ToursPage } from "./components/tours/ToursPage";
+import ToursPage from "./components/tours/ToursPage";
 import BookingsPage from "./components/bookings/BookingsPage";
 import ReviewsPage from "./components/reviews/ReviewsPage";
 
@@ -38,14 +47,22 @@ export function RootComponent() {
   );
 }
 export const rootRoute = createRootRoute({
-  component: RootComponent,
-  notFoundComponent: () => {
-    return (
-      <div>
-        <p>This is the notFoundComponent configured on root route</p>
-        <Link to="/">Start Over</Link>
-      </div>
-    );
+  component: () => <Outlet />,
+
+  notFoundComponent: () => (
+    <div>
+      <p>This is the notFoundComponent configured on root route</p>
+      <Link to="/dashboard">Go to Dashboard</Link>
+    </div>
+  ),
+});
+export const indexRoute = createRoute({
+  path: "/",
+  getParentRoute: () => rootRoute,
+  beforeLoad: () => {
+    throw redirect({
+      to: "/dashboard",
+    });
   },
 });
 
@@ -103,6 +120,8 @@ export const reviewsRoute = createRoute({
   component: ReviewsPage,
 });
 const routeTree = rootRoute.addChildren([
+  indexRoute,
+
   layoutRoute.addChildren([
     dashboardRoute,
     activitiesRoute,

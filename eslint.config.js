@@ -18,6 +18,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
-    rules: { "react-refresh/only-export-components": "off", '@typescript-eslint/no-unused-vars': 'off' },
+    rules: {
+      "react-refresh/only-export-components": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
   },
 ]);
