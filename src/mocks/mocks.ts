@@ -8,77 +8,17 @@ import catAdventure from "@/assets/act1.jpeg";
 import catCultural from "@/assets/act1.jpeg";
 import catFamily from "@/assets/act1.jpeg";
 import catLuxury from "@/assets/act1.jpeg";
+import { Activity } from "@/types/activity";
+import { Category } from "@/types/category";
+import { Review } from "@/types/review";
+import { Testimonial } from "@/types/testimonial";
+import { ItineraryDay, Tour } from "@/types/tour";
 
-export type Difficulty = "Easy" | "Moderate" | "Challenging";
-export type TourCategory = "Adventure" | "Cultural" | "Family" | "Luxury";
-
-export type Review = {
-  id: string;
-  name: string;
-  avatar: string;
-  date: string;
-  rating: number;
-  comment: string;
-};
-
-export type ItineraryDay = {
-  day: number;
-  title: string;
-  description: string;
-};
-
-export type Tour = {
-  id: string;
-  title: string;
-  description: string;
-  longDescription: string;
-  price: number;
-  duration: number; // days
-  difficulty: Difficulty;
-  category: TourCategory;
-  images: string[];
-  capacity: number;
-  rating: number;
-  reviewCount: number;
-  popularity: number;
-  highlights: string[];
-  itinerary: ItineraryDay[];
-  reviews: Review[];
-};
-
-export type Activity = {
-  id: string;
-  title: string;
-  description: string;
-  longDescription?: string;
-  price: number;
-  duration: number; // hours
-  category: string;
-  images: string[];
-  rating: number;
-  highlights?: string[];
-  included?: string[];
-  meetingPoint?: string;
-};
+export const CATS = ["Aerial", "Culinary", "Water", "Cultural", "Outdoor"];
 
 export function getActivityById(id: string): Activity | undefined {
   return activities.find((a) => a.id === id);
 }
-
-
-export type Category = {
-  slug: string;
-  label: string;
-  image: string;
-};
-
-export type Testimonial = {
-  id: string;
-  name: string;
-  avatar: string;
-  quote: string;
-  rating: number;
-};
 
 const sampleHighlights = [
   "Small groups capped at 12 travelers",
@@ -341,7 +281,12 @@ export const activities: Activity[] = [
       "Small basket, max 16 flyers",
       "Champagne toast on landing",
     ],
-    included: ["Transfers", "Light breakfast", "Flight insurance", "Certificate"],
+    included: [
+      "Transfers",
+      "Light breakfast",
+      "Flight insurance",
+      "Certificate",
+    ],
     meetingPoint: "Your hotel lobby in Göreme, 04:30",
   },
   {
@@ -367,7 +312,8 @@ export const activities: Activity[] = [
   {
     id: "reef-snorkel",
     title: "Great Barrier Reef Snorkel",
-    description: "A quiet cove, warm water and a marine biologist as your guide.",
+    description:
+      "A quiet cove, warm water and a marine biologist as your guide.",
     longDescription:
       "A half-day sail out to a protected pocket of the outer reef most boats skip. Your guide is a working marine biologist who'll point out what you'd otherwise swim past — reef sharks, giant clams, a resident green turtle named Doris.",
     price: 140,
@@ -381,11 +327,15 @@ export const activities: Activity[] = [
       "Marine biologist onboard",
       "Reef-safe sunscreen provided",
     ],
-    included: ["Mask, fins, wetsuit", "Lunch on board", "Reef tax", "Fresh towel"],
+    included: [
+      "Mask, fins, wetsuit",
+      "Lunch on board",
+      "Reef tax",
+      "Fresh towel",
+    ],
     meetingPoint: "Marlin Marina, Cairns, 08:00",
   },
 ];
-
 
 export const categories: Category[] = [
   { slug: "adventure", label: "Adventure", image: catAdventure },

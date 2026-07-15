@@ -19,14 +19,14 @@ import {
   Users,
 } from "lucide-react";
 import "./index.css";
-import LayoutComponent from "./components/AdminLayout";
-import DashboardPage from "./components/dashboard/DashboardPage";
-import ActivitiesPage from "./components/acitivites/ActivitiesPage";
-import CustomersPage from "./components/customers/CustomersPage";
-import SettingPage from "./components/setting/SettingPage";
-import ToursPage from "./components/tours/ToursPage";
-import BookingsPage from "./components/bookings/BookingsPage";
-import ReviewsPage from "./components/reviews/ReviewsPage";
+import LayoutComponent from "./components/layout/AdminLayout";
+import DashboardPage from "./pages/dashboard/DashboardPage";
+import ActivitiesPage from "./pages/activites/ActivitiesPage";
+import CustomersPage from "./pages/customers/CustomersPage";
+import SettingPage from "./pages/settings/SettingsPage";
+import ToursPage from "./pages/tours/ToursPage";
+import BookingsPage from "./pages/bookings/BookingsPage";
+import ReviewsPage from "./pages/reviews/ReviewsPage";
 
 export const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },

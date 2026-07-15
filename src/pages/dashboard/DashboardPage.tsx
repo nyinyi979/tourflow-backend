@@ -17,7 +17,7 @@ import {
   Map,
   Users,
 } from "lucide-react";
-import { StatusBadge } from "@/components/AdminLayout";
+import { StatusBadge } from "@/components/layout/AdminLayout";
 import {
   Table,
   TableBody,
@@ -31,7 +31,7 @@ import {
   dashboardStats,
   monthlyRevenue,
   topTours,
-} from "@/lib/admin-mocks";
+} from "@/mocks/admin-mocks";
 
 export function StatCard({
   label,

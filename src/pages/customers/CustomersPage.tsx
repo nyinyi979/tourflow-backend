@@ -16,17 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import {
-  adminBookings,
-  adminCustomers,
-  type AdminCustomer,
-} from "@/lib/admin-mocks";
-import { Pagination, usePaginated } from "../ui/Pagination";
+import { adminBookings, adminCustomers } from "@/mocks/admin-mocks";
+import { Pagination, usePaginated } from "../../components/ui/Pagination";
+import { Customer } from "@/types/customer";
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
-  const [selected, setSelected] = useState<AdminCustomer | null>(null);
+  const [selected, setSelected] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 

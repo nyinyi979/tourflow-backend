@@ -1,8 +1,7 @@
 import { useState } from "react";
-import type { TourRow } from "./ToursPage";
-import { Label } from "../ui/Label";
-import { Input } from "../ui/Input";
-import { Textarea } from "../ui/Textarea";
+import { Label } from "../../../components/ui/Label";
+import { Input } from "../../../components/ui/Input";
+import { Textarea } from "../../../components/ui/Textarea";
 import {
   Select,
   SelectContent,
@@ -10,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { Switch } from "../ui/Switch";
+import { Switch } from "../../../components/ui/Switch";
 import { Plus, Upload, X } from "lucide-react";
-import { Button } from "../ui/Button";
+import { Button } from "../../../components/ui/Button";
+import { TourRow } from "../types";
 
 export default function TourForm({
   value,

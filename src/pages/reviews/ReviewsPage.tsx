@@ -17,10 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import { adminReviews, type AdminReview } from "@/lib/admin-mocks";
-import { tours } from "@/lib/mocks";
+import { adminReviews } from "@/mocks/admin-mocks";
+import { tours } from "@/mocks/mocks";
 import { Pagination, usePaginated } from "@/components/ui/Pagination";
-import { StatusBadge } from "../AdminLayout";
+import { StatusBadge } from "../../components/layout/AdminLayout";
+import { AdminReview } from "@/types/review";
 
 export default function ReviewsPage() {
   const [rows, setRows] = useState<AdminReview[]>(adminReviews);

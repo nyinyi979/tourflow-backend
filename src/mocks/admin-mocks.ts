@@ -1,39 +1,9 @@
-import { tours, activities, type Tour, type Activity } from "./mocks";
-
-export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
-
-export type Booking = {
-  id: string;
-  customer: { name: string; email: string; avatar: string };
-  tour: { name: string; type: "tour" | "activity" };
-  travelDate: string;
-  createdAt: string;
-  guests: { adults: number; children: number };
-  totalPrice: number;
-  status: BookingStatus;
-  activity: { at: string; label: string }[];
-};
-
-export type AdminCustomer = {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  registeredAt: string;
-  totalBookings: number;
-  totalSpent: number;
-};
-
-export type AdminReview = {
-  id: string;
-  customer: string;
-  avatar: string;
-  tour: string;
-  rating: number;
-  comment: string;
-  date: string;
-  status: "published" | "hidden";
-};
+import { Tour } from "@/types/tour";
+import { tours, activities } from "./mocks";
+import { Activity } from "@/types/activity";
+import { Booking } from "@/types/booking";
+import { Customer } from "@/types/customer";
+import { AdminReview } from "@/types/review";
 
 const names = [
   ["Amara Okafor", "amara.okafor@mail.com", 47],
@@ -50,15 +20,23 @@ const names = [
   ["Zara Khan", "zara.k@mail.com", 26],
 ] as const;
 
-const statuses: BookingStatus[] = ["pending", "confirmed", "cancelled", "completed"];
+const statuses: string[] = ["pending", "confirmed", "cancelled", "completed"];
 
 function pad(n: number) {
   return String(n).padStart(4, "0");
 }
 
 const allItems: { name: string; price: number; type: "tour" | "activity" }[] = [
-  ...tours.map((t: Tour) => ({ name: t.title, price: t.price, type: "tour" as const })),
-  ...activities.map((a: Activity) => ({ name: a.title, price: a.price, type: "activity" as const })),
+  ...tours.map((t: Tour) => ({
+    name: t.title,
+    price: t.price,
+    type: "tour" as const,
+  })),
+  ...activities.map((a: Activity) => ({
+    name: a.title,
+    price: a.price,
+    type: "activity" as const,
+  })),
 ];
 
 export const adminBookings: Booking[] = Array.from({ length: 24 }, (_, i) => {
@@ -80,23 +58,36 @@ export const adminBookings: Booking[] = Array.from({ length: 24 }, (_, i) => {
     totalPrice: item.price * adults + Math.round(item.price * 0.5) * children,
     status,
     activity: [
-      { at: created.toISOString().slice(0, 10) + " 09:12", label: "Booking created" },
-      { at: created.toISOString().slice(0, 10) + " 09:14", label: "Payment received" },
+      {
+        at: created.toISOString().slice(0, 10) + " 09:12",
+        label: "Booking created",
+      },
+      {
+        at: created.toISOString().slice(0, 10) + " 09:14",
+        label: "Payment received",
+      },
       ...(status !== "pending"
-        ? [{ at: created.toISOString().slice(0, 10) + " 10:02", label: `Status changed to ${status}` }]
+        ? [
+            {
+              at: created.toISOString().slice(0, 10) + " 10:02",
+              label: `Status changed to ${status}`,
+            },
+          ]
         : []),
     ],
   };
 });
 
-export const adminCustomers: AdminCustomer[] = names.map(([name, email, img], i) => {
+export const adminCustomers: Customer[] = names.map(([name, email, img], i) => {
   const bookings = adminBookings.filter((b) => b.customer.email === email);
   return {
     id: `CU-${pad(200 + i)}`,
     name,
     email,
     avatar: `https://i.pravatar.cc/80?img=${img}`,
-    registeredAt: new Date(2025, i % 12, 1 + (i % 27)).toISOString().slice(0, 10),
+    registeredAt: new Date(2025, i % 12, 1 + (i % 27))
+      .toISOString()
+      .slice(0, 10),
     totalBookings: bookings.length,
     totalSpent: bookings.reduce((s, b) => s + b.totalPrice, 0),
   };
@@ -111,20 +102,25 @@ const reviewComments = [
   "Well organised, well paced. Would book again.",
 ];
 
-export const adminReviews: AdminReview[] = Array.from({ length: 14 }, (_, i) => {
-  const [name, , img] = names[i % names.length];
-  const tour = tours[i % tours.length];
-  return {
-    id: `RV-${pad(500 + i)}`,
-    customer: name,
-    avatar: `https://i.pravatar.cc/80?img=${img}`,
-    tour: tour.title,
-    rating: 3 + (i % 3),
-    comment: reviewComments[i % reviewComments.length],
-    date: new Date(2026, 5 - (i % 6), 2 + (i % 25)).toISOString().slice(0, 10),
-    status: i % 5 === 0 ? "hidden" : "published",
-  };
-});
+export const adminReviews: AdminReview[] = Array.from(
+  { length: 14 },
+  (_, i) => {
+    const [name, , img] = names[i % names.length];
+    const tour = tours[i % tours.length];
+    return {
+      id: `RV-${pad(500 + i)}`,
+      customer: name,
+      avatar: `https://i.pravatar.cc/80?img=${img}`,
+      tour: tour.title,
+      rating: 3 + (i % 3),
+      comment: reviewComments[i % reviewComments.length],
+      date: new Date(2026, 5 - (i % 6), 2 + (i % 25))
+        .toISOString()
+        .slice(0, 10),
+      status: i % 5 === 0 ? "hidden" : "published",
+    };
+  },
+);
 
 export const monthlyRevenue = [
   { month: "Jul", revenue: 42100, bookings: 38 },

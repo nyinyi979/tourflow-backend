@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
-import { Textarea } from "@/components/ui/Textarea";
 import { Switch } from "@/components/ui/Switch";
 import {
   Select,
@@ -17,6 +14,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/Sheet";
@@ -28,32 +26,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import { activities as initial, type Activity } from "@/lib/mocks";
-import { Pagination, usePaginated } from "../ui/Pagination";
+import { tours as initialTours } from "@/mocks/mocks";
+import { Pagination, usePaginated } from "@/components/ui/Pagination";
+import { StatusBadge } from "../../components/layout/AdminLayout";
+import TourForm from "./components/ToursForm";
+import { TourRow } from "./types";
 
-type Row = Activity & {
-  status: "active" | "inactive";
-  description: string;
-  longDescription: string;
-  meetingPoint: string;
-};
 
-const CATS = ["Aerial", "Culinary", "Water", "Cultural", "Outdoor"];
-
-export default function ActivitiesPage() {
-  const [rows, setRows] = useState<Row[]>(
-    initial.map((a, i) => ({
-      ...a,
-      longDescription: a.longDescription ?? "",
-      meetingPoint: a.meetingPoint ?? "",
-      status: i % 4 === 0 ? "inactive" : "active",
+export default function ToursPage() {
+  const [rows, setRows] = useState<TourRow[]>(
+    initialTours.map((t: any, i: any) => ({
+      ...t,
+      status: i % 5 === 0 ? "inactive" : "active",
     })),
   );
-
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
-  const [editing, setEditing] = useState<Row | null>(null);
+  const [editing, setEditing] = useState<TourRow | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -80,26 +70,36 @@ export default function ActivitiesPage() {
       title: "",
       description: "",
       longDescription: "",
-      meetingPoint: "",
       price: 0,
       duration: 1,
-      category: "Aerial",
+      difficulty: "Easy",
+      category: "Adventure",
       images: [],
+      capacity: 10,
       rating: 0,
+      reviewCount: 0,
+      popularity: 0,
+      highlights: [],
+      itinerary: [],
+      reviews: [],
       status: "active",
     });
-
     setOpen(true);
   }
 
-  function save(row: Row) {
+  function save(row: TourRow) {
     setRows((prev) => {
       const exists = prev.find((r) => r.id === row.id);
       if (exists) return prev.map((r) => (r.id === row.id ? row : r));
       return [row, ...prev];
     });
-    toast.success("Activity saved");
+    toast.success(`Saved "${row.title || "Untitled tour"}"`);
     setOpen(false);
+  }
+
+  function del(id: string) {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Tour deleted");
   }
 
   return (
@@ -108,7 +108,7 @@ export default function ActivitiesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search activities…"
+            placeholder="Search tours…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-white"
@@ -120,11 +120,10 @@ export default function ActivitiesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            {CATS.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
+            <SelectItem value="Adventure">Adventure</SelectItem>
+            <SelectItem value="Cultural">Cultural</SelectItem>
+            <SelectItem value="Family">Family</SelectItem>
+            <SelectItem value="Luxury">Luxury</SelectItem>
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
@@ -141,7 +140,7 @@ export default function ActivitiesPage() {
           onClick={openNew}
           className="bg-teal-deep hover:bg-teal-deep/90"
         >
-          <Plus className="h-4 w-4" /> Add New Activity
+          <Plus className="h-4 w-4" /> Add New Tour
         </Button>
       </div>
 
@@ -154,41 +153,43 @@ export default function ActivitiesPage() {
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Rating</TableHead>
+              <TableHead>Difficulty</TableHead>
+              <TableHead>Capacity</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map((a) => (
-              <TableRow key={a.id}>
+            {paged.map((t) => (
+              <TableRow key={t.id}>
                 <TableCell>
                   <img
-                    src={a.images[0]}
+                    src={t.images[0]}
                     className="h-10 w-14 rounded object-cover"
                     alt=""
                   />
                 </TableCell>
-                <TableCell className="font-medium">{a.title}</TableCell>
-                <TableCell>{a.category}</TableCell>
-                <TableCell>${a.price}</TableCell>
-                <TableCell>{a.duration}h</TableCell>
-                <TableCell>{a.rating}</TableCell>
+                <TableCell className="font-medium">{t.title}</TableCell>
+                <TableCell>{t.category}</TableCell>
+                <TableCell>${t.price}</TableCell>
+                <TableCell>{t.duration}d</TableCell>
+                <TableCell>{t.difficulty}</TableCell>
+                <TableCell>{t.capacity}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={a.status === "active"}
+                      checked={t.status === "active"}
                       onCheckedChange={(v) =>
                         setRows((prev) =>
                           prev.map((r) =>
-                            r.id === a.id
+                            r.id === t.id
                               ? { ...r, status: v ? "active" : "inactive" }
                               : r,
                           ),
                         )
                       }
                     />
-                    <StatusBadge status={a.status} />
+                    <StatusBadge status={t.status} />
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -196,20 +197,13 @@ export default function ActivitiesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setEditing(a);
+                      setEditing(t);
                       setOpen(true);
                     }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setRows((p) => p.filter((r) => r.id !== a.id));
-                      toast.success("Deleted");
-                    }}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => del(t.id)}>
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
                 </TableCell>
@@ -230,14 +224,17 @@ export default function ActivitiesPage() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>
-              {editing?.title ? `Edit: ${editing.title}` : "Add new activity"}
+              {editing?.title ? `Edit: ${editing.title}` : "Add new tour"}
             </SheetTitle>
+            <SheetDescription>
+              Fill in the details and click save.
+            </SheetDescription>
           </SheetHeader>
           {editing && (
-            <ActivityForm
+            <TourForm
               value={editing}
               onCancel={() => setOpen(false)}
               onSave={save}
@@ -246,111 +243,5 @@ export default function ActivitiesPage() {
         </SheetContent>
       </Sheet>
     </>
-  );
-}
-
-function ActivityForm({
-  value,
-  onCancel,
-  onSave,
-}: {
-  value: Row;
-  onCancel: () => void;
-  onSave: (v: Row) => void;
-}) {
-  const [v, setV] = useState<Row>(value);
-  const set = <K extends keyof Row>(k: K, val: Row[K]) =>
-    setV((p) => ({ ...p, [k]: val }));
-  return (
-    <div className="mt-4 space-y-4 pb-6">
-      <div>
-        <Label>Title</Label>
-        <Input value={v.title} onChange={(e) => set("title", e.target.value)} />
-      </div>
-      <div>
-        <Label>Short description</Label>
-        <Textarea
-          rows={2}
-          value={v.description}
-          onChange={(e) => set("description", e.target.value)}
-        />
-      </div>
-      <div>
-        <Label>Long description</Label>
-        <Textarea
-          rows={5}
-          placeholder="Full experience details shown on the activity page"
-          value={v.longDescription}
-          onChange={(e) => set("longDescription", e.target.value)}
-        />
-      </div>
-      <div>
-        <Label>Meeting point</Label>
-        <Input
-          value={v.meetingPoint}
-          placeholder="Where guests meet the guide"
-          onChange={(e) => set("meetingPoint", e.target.value)}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label>Price ($)</Label>
-          <Input
-            type="number"
-            value={v.price}
-            onChange={(e) => set("price", +e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>Duration (hours)</Label>
-          <Input
-            type="number"
-            value={v.duration}
-            onChange={(e) => set("duration", +e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>Category</Label>
-          <Select value={v.category} onValueChange={(x) => set("category", x)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CATS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-end gap-2">
-          <Switch
-            checked={v.status === "active"}
-            onCheckedChange={(x) => set("status", x ? "active" : "inactive")}
-          />
-          <Label>Active</Label>
-        </div>
-      </div>
-      <div>
-        <Label>Images</Label>
-        <div className="mt-1 flex h-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-          <Upload className="mb-1 h-5 w-5" />
-          Drag & drop or click to upload (mock)
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          className="bg-teal-deep hover:bg-teal-deep/90"
-          onClick={() => onSave(v)}
-        >
-          Save
-        </Button>
-      </div>
-    </div>
   );
 }

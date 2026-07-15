@@ -1,4 +1,3 @@
-import { type Booking, type BookingStatus } from "@/lib/admin-mocks";
 import {
   Select,
   SelectContent,
@@ -6,10 +5,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { StatusBadge } from "../AdminLayout";
-import { Button } from "../ui/Button";
+import { StatusBadge } from "../../../components/layout/AdminLayout";
+import { Button } from "../../../components/ui/Button";
 import { toast } from "sonner";
 import { Mail } from "lucide-react";
+import { Booking } from "@/types/booking";
 
 export default function BookingDetails({
   activity,
@@ -23,7 +23,7 @@ export default function BookingDetails({
   travelDate,
   updateStatus,
 }: Booking & {
-  updateStatus: (id: string, next: BookingStatus) => void;
+  updateStatus: (id: string, next: string) => void;
 }) {
   return (
     <div className="mt-4 space-y-5">
@@ -70,10 +70,7 @@ export default function BookingDetails({
         </h4>
         <div className="mt-2 flex items-center gap-3">
           <StatusBadge status={status} />
-          <Select
-            value={status}
-            onValueChange={(v) => updateStatus(id, v as BookingStatus)}
-          >
+          <Select value={status} onValueChange={(v) => updateStatus(id, v)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>

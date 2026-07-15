@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { StatusBadge } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
@@ -14,7 +15,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/Sheet";
@@ -26,24 +26,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import { tours as initialTours, type Tour } from "@/lib/mocks";
-import { Pagination, usePaginated } from "@/components/ui/Pagination";
-import { StatusBadge } from "../AdminLayout";
-import TourForm from "./ToursForm";
+import { CATS, activities as initial } from "@/mocks/mocks";
+import { Pagination, usePaginated } from "../../components/ui/Pagination";
+import ActivityForm from "./components/ActivityForm";
+import { ActivityRow } from "./types";
 
-export type TourRow = Tour & { status: "active" | "inactive" };
-
-export default function ToursPage() {
-  const [rows, setRows] = useState<TourRow[]>(
-    initialTours.map((t, i) => ({
-      ...t,
-      status: i % 5 === 0 ? "inactive" : "active",
+export default function ActivitiesPage() {
+  const [rows, setRows] = useState<ActivityRow[]>(
+    initial.map((a, i) => ({
+      ...a,
+      longDescription: a.longDescription ?? "",
+      meetingPoint: a.meetingPoint ?? "",
+      status: i % 4 === 0 ? "inactive" : "active",
     })),
   );
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
-  const [editing, setEditing] = useState<TourRow | null>(null);
+  const [editing, setEditing] = useState<ActivityRow | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -70,36 +71,26 @@ export default function ToursPage() {
       title: "",
       description: "",
       longDescription: "",
+      meetingPoint: "",
       price: 0,
       duration: 1,
-      difficulty: "Easy",
-      category: "Adventure",
+      category: "Aerial",
       images: [],
-      capacity: 10,
       rating: 0,
-      reviewCount: 0,
-      popularity: 0,
-      highlights: [],
-      itinerary: [],
-      reviews: [],
       status: "active",
     });
+
     setOpen(true);
   }
 
-  function save(row: TourRow) {
+  function save(row: ActivityRow) {
     setRows((prev) => {
       const exists = prev.find((r) => r.id === row.id);
       if (exists) return prev.map((r) => (r.id === row.id ? row : r));
       return [row, ...prev];
     });
-    toast.success(`Saved "${row.title || "Untitled tour"}"`);
+    toast.success("Activity saved");
     setOpen(false);
-  }
-
-  function del(id: string) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    toast.success("Tour deleted");
   }
 
   return (
@@ -108,7 +99,7 @@ export default function ToursPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search tours…"
+            placeholder="Search activities…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-white"
@@ -120,10 +111,11 @@ export default function ToursPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            <SelectItem value="Adventure">Adventure</SelectItem>
-            <SelectItem value="Cultural">Cultural</SelectItem>
-            <SelectItem value="Family">Family</SelectItem>
-            <SelectItem value="Luxury">Luxury</SelectItem>
+            {CATS.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
@@ -140,7 +132,7 @@ export default function ToursPage() {
           onClick={openNew}
           className="bg-teal-deep hover:bg-teal-deep/90"
         >
-          <Plus className="h-4 w-4" /> Add New Tour
+          <Plus className="h-4 w-4" /> Add New Activity
         </Button>
       </div>
 
@@ -153,43 +145,41 @@ export default function ToursPage() {
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Difficulty</TableHead>
-              <TableHead>Capacity</TableHead>
+              <TableHead>Rating</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map((t) => (
-              <TableRow key={t.id}>
+            {paged.map((a) => (
+              <TableRow key={a.id}>
                 <TableCell>
                   <img
-                    src={t.images[0]}
+                    src={a.images[0]}
                     className="h-10 w-14 rounded object-cover"
                     alt=""
                   />
                 </TableCell>
-                <TableCell className="font-medium">{t.title}</TableCell>
-                <TableCell>{t.category}</TableCell>
-                <TableCell>${t.price}</TableCell>
-                <TableCell>{t.duration}d</TableCell>
-                <TableCell>{t.difficulty}</TableCell>
-                <TableCell>{t.capacity}</TableCell>
+                <TableCell className="font-medium">{a.title}</TableCell>
+                <TableCell>{a.category}</TableCell>
+                <TableCell>${a.price}</TableCell>
+                <TableCell>{a.duration}h</TableCell>
+                <TableCell>{a.rating}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={t.status === "active"}
+                      checked={a.status === "active"}
                       onCheckedChange={(v) =>
                         setRows((prev) =>
                           prev.map((r) =>
-                            r.id === t.id
+                            r.id === a.id
                               ? { ...r, status: v ? "active" : "inactive" }
                               : r,
                           ),
                         )
                       }
                     />
-                    <StatusBadge status={t.status} />
+                    <StatusBadge status={a.status} />
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -197,13 +187,20 @@ export default function ToursPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setEditing(t);
+                      setEditing(a);
                       setOpen(true);
                     }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => del(t.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setRows((p) => p.filter((r) => r.id !== a.id));
+                      toast.success("Deleted");
+                    }}
+                  >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
                 </TableCell>
@@ -224,17 +221,14 @@ export default function ToursPage() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>
-              {editing?.title ? `Edit: ${editing.title}` : "Add new tour"}
+              {editing?.title ? `Edit: ${editing.title}` : "Add new activity"}
             </SheetTitle>
-            <SheetDescription>
-              Fill in the details and click save.
-            </SheetDescription>
           </SheetHeader>
           {editing && (
-            <TourForm
+            <ActivityForm
               value={editing}
               onCancel={() => setOpen(false)}
               onSave={save}

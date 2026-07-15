@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search, Download } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/AdminLayout";
+import { StatusBadge } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -27,11 +27,10 @@ import {
 } from "@/components/ui/Table";
 import {
   adminBookings,
-  type Booking,
-  type BookingStatus,
-} from "@/lib/admin-mocks";
+} from "@/mocks/admin-mocks";
 import { Pagination, usePaginated } from "@/components/ui/Pagination";
-import BookingDetails from "./BookingDetails";
+import BookingDetails from "./components/BookingDetails";
+import { Booking } from "@/types/booking";
 
 export default function BookingsPage() {
   const [rows, setRows] = useState<Booking[]>(adminBookings);
@@ -84,7 +83,7 @@ export default function BookingsPage() {
     toast.success("Exported CSV");
   }
 
-  function updateStatus(id: string, next: BookingStatus) {
+  function updateStatus(id: string, next: string) {
     setRows((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: next } : b)),
     );
