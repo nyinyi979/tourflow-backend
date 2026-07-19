@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { useState } from "react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Switch } from "@/components/ui/Switch";
 import {
   Select,
   SelectContent,
@@ -26,81 +26,99 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import { tours as initialTours } from "@/mocks/mocks";
 import { Pagination, usePaginated } from "@/components/ui/Pagination";
-import { StatusBadge } from "../../components/layout/AdminLayout";
-import TourForm from "./components/ToursForm";
-import { TourRow } from "./types";
-
+import useDebouncedValue from "@/hooks/useDebouncedValue";
+import { getAllCategories } from "@/services/categories";
+import {
+  createTour,
+  deleteTour,
+  getTours,
+  updateTour,
+} from "@/services/tours";
+import type { Tour } from "@/types/tour";
+import TourForm, { TourFormData } from "./components/ToursForm";
 
 export default function ToursPage() {
-  const [rows, setRows] = useState<TourRow[]>(
-    initialTours.map((t: any, i: any) => ({
-      ...t,
-      status: i % 5 === 0 ? "inactive" : "active",
-    })),
-  );
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [editing, setEditing] = useState<TourRow | null>(null);
+  const debouncedSearch = useDebouncedValue(search);
+  const [categoryId, setCategoryId] = useState("all");
+  const [difficulty, setDifficulty] = useState("all");
+  const [editing, setEditing] = useState<TourFormData | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [perPage, setPerPage] = useState(10);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter(
-        (r) =>
-          r.title.toLowerCase().includes(search.toLowerCase()) &&
-          (category === "all" || r.category === category) &&
-          (status === "all" || r.status === status),
-      ),
-    [rows, search, category, status],
-  );
-  const { paged, total, pageCount, safePage, start } = usePaginated(
-    filtered,
+  const categoriesQuery = useQuery({
+    queryKey: ["categories", "all", "tour"],
+    queryFn: () => getAllCategories("tour"),
+  });
+  const toursQuery = useQuery({
+    queryKey: ["tours", debouncedSearch, categoryId, difficulty, page, perPage],
+    queryFn: () =>
+      getTours({
+        page: page - 1,
+        perPage,
+        query: debouncedSearch || undefined,
+        categoryId: categoryId === "all" ? undefined : categoryId,
+        difficulty: difficulty === "all" ? undefined : difficulty,
+      }),
+    placeholderData: (previous) => previous,
+  });
+  const { total, pageCount, safePage, start } = usePaginated(
+    toursQuery.data?.total ?? 0,
     page,
-    pageSize,
+    perPage,
   );
 
-  function openNew() {
+  const saveMutation = useMutation({
+    mutationFn: (tour: TourFormData) => {
+      const { id, ...body } = tour;
+      return id ? updateTour({ ...body, id }) : createTour(body);
+    },
+    onSuccess: async (_response, tour) => {
+      await queryClient.invalidateQueries({ queryKey: ["tours"] });
+      toast.success(`Saved "${tour.title}"`);
+      setOpen(false);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Save failed"),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteTour,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["tours"] });
+      toast.success("Tour deleted");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Delete failed"),
+  });
+
+  const openNew = () => {
     setEditing({
-      id: `new-${Date.now()}`,
+      slug: "",
       title: "",
       description: "",
-      longDescription: "",
       price: 0,
       duration: 1,
       difficulty: "Easy",
-      category: "Adventure",
-      images: [],
-      capacity: 10,
+      categoryId: "",
+      capacity: 1,
       rating: 0,
       reviewCount: 0,
       popularity: 0,
+      images: [],
       highlights: [],
       itinerary: [],
-      reviews: [],
-      status: "active",
+      removedImageUrls: [],
     });
     setOpen(true);
-  }
+  };
 
-  function save(row: TourRow) {
-    setRows((prev) => {
-      const exists = prev.find((r) => r.id === row.id);
-      if (exists) return prev.map((r) => (r.id === row.id ? row : r));
-      return [row, ...prev];
-    });
-    toast.success(`Saved "${row.title || "Untitled tour"}"`);
-    setOpen(false);
-  }
-
-  function del(id: string) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    toast.success("Tour deleted");
-  }
+  const confirmDelete = (tour: Tour) => {
+    if (window.confirm(`Delete "${tour.title}"?`))
+      deleteMutation.mutate(tour.id);
+  };
 
   return (
     <>
@@ -110,30 +128,32 @@ export default function ToursPage() {
           <Input
             placeholder="Search tours…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white"
+            onChange={(event) => setSearch(event.target.value)}
+            className="bg-white pl-9"
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-full bg-white sm:w-40">
+        <Select value={categoryId} onValueChange={setCategoryId}>
+          <SelectTrigger className="w-full bg-white sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            <SelectItem value="Adventure">Adventure</SelectItem>
-            <SelectItem value="Cultural">Cultural</SelectItem>
-            <SelectItem value="Family">Family</SelectItem>
-            <SelectItem value="Luxury">Luxury</SelectItem>
+            {categoriesQuery.data?.data.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-full bg-white sm:w-36">
+        <Select value={difficulty} onValueChange={setDifficulty}>
+          <SelectTrigger className="w-full bg-white sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">All difficulties</SelectItem>
+            <SelectItem value="Easy">Easy</SelectItem>
+            <SelectItem value="Moderate">Moderate</SelectItem>
+            <SelectItem value="Challenging">Challenging</SelectItem>
           </SelectContent>
         </Select>
         <Button
@@ -155,76 +175,100 @@ export default function ToursPage() {
               <TableHead>Duration</TableHead>
               <TableHead>Difficulty</TableHead>
               <TableHead>Capacity</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell>
-                  <img
-                    src={t.images[0]}
-                    className="h-10 w-14 rounded object-cover"
-                    alt=""
-                  />
+            {toursQuery.isLoading && (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="py-10 text-center text-slate-500"
+                >
+                  Loading tours…
                 </TableCell>
-                <TableCell className="font-medium">{t.title}</TableCell>
-                <TableCell>{t.category}</TableCell>
-                <TableCell>${t.price}</TableCell>
-                <TableCell>{t.duration}d</TableCell>
-                <TableCell>{t.difficulty}</TableCell>
-                <TableCell>{t.capacity}</TableCell>
+              </TableRow>
+            )}
+            {toursQuery.isError && (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="py-10 text-center text-rose-600"
+                >
+                  Unable to load tours.
+                </TableCell>
+              </TableRow>
+            )}
+            {toursQuery.data?.data.map((tour) => (
+              <TableRow key={tour.id}>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={t.status === "active"}
-                      onCheckedChange={(v) =>
-                        setRows((prev) =>
-                          prev.map((r) =>
-                            r.id === t.id
-                              ? { ...r, status: v ? "active" : "inactive" }
-                              : r,
-                          ),
-                        )
-                      }
+                  {tour.images[0] ? (
+                    <img
+                      src={tour.images[0].url}
+                      className="h-10 w-14 rounded object-cover"
+                      alt={tour.title}
                     />
-                    <StatusBadge status={t.status} />
-                  </div>
+                  ) : (
+                    <div className="h-10 w-14 rounded bg-slate-100" />
+                  )}
                 </TableCell>
+                <TableCell className="font-medium">{tour.title}</TableCell>
+                <TableCell>{tour.category}</TableCell>
+                <TableCell>${tour.price.toLocaleString()}</TableCell>
+                <TableCell>{tour.duration}d</TableCell>
+                <TableCell>{tour.difficulty}</TableCell>
+                <TableCell>{tour.capacity}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="sm"
+                    aria-label={`Edit ${tour.title}`}
                     onClick={() => {
-                      setEditing(t);
+                      setEditing(tour);
                       setOpen(true);
                     }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => del(t.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Delete ${tour.title}`}
+                    onClick={() => confirmDelete(tour)}
+                  >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
+            {!toursQuery.isLoading &&
+              !toursQuery.isError &&
+              !toursQuery.data?.data.length && (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="py-10 text-center text-slate-500"
+                  >
+                    No tours found.
+                  </TableCell>
+                </TableRow>
+              )}
           </TableBody>
         </Table>
         <Pagination
           page={safePage}
-          pageSize={pageSize}
+          pageSize={perPage}
           total={total}
           pageCount={pageCount}
           start={start}
           onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          resetKey={`${search}|${category}|${status}`}
+          onPageSizeChange={setPerPage}
+          resetKey={`${search}|${categoryId}|${difficulty}`}
         />
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>
               {editing?.title ? `Edit: ${editing.title}` : "Add new tour"}
@@ -235,9 +279,13 @@ export default function ToursPage() {
           </SheetHeader>
           {editing && (
             <TourForm
+              key={editing.id ?? "new-tour"}
               value={editing}
+              categories={categoriesQuery.data?.data ?? []}
               onCancel={() => setOpen(false)}
-              onSave={save}
+              onSave={(tour) =>
+                saveMutation.mutateAsync(tour).then(() => undefined)
+              }
             />
           )}
         </SheetContent>

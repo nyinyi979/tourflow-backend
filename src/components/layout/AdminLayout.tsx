@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronDown, Menu, LogOut } from "lucide-react";
+import { ChevronDown, Menu, LogOut } from "lucide-react";
 import { Toaster } from "@/components/ui/Sooner";
 import {
   DropdownMenu,
@@ -12,13 +12,18 @@ import {
 } from "@/components/ui/DropdownMenu";
 import { cn } from "@/lib/utils";
 import { navItems } from "@/main";
+import type { AdminUser } from "@/types/auth";
 
 export default function LayoutComponent({
   title,
   children,
+  user,
+  onLogout,
 }: {
   title: string;
   children: ReactNode;
+  user: AdminUser;
+  onLogout: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -37,7 +42,7 @@ export default function LayoutComponent({
           "hidden lg:flex",
         )}
       >
-        <SidebarInner collapsed={collapsed} isActive={isActive} />
+        <SidebarInner collapsed={collapsed} isActive={isActive} user={user} />
       </aside>
 
       {/* Mobile sidebar */}
@@ -51,6 +56,7 @@ export default function LayoutComponent({
             <SidebarInner
               collapsed={false}
               isActive={isActive}
+              user={user}
               onNavigate={() => setMobileOpen(false)}
             />
           </aside>
@@ -82,30 +88,22 @@ export default function LayoutComponent({
             {title}
           </h1>
           <div className="ml-auto flex items-center gap-2">
-            <button className="relative rounded-md p-2 hover:bg-slate-100">
-              <Bell className="h-5 w-5 text-slate-600" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-teal-deep" />
-            </button>
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100">
-                <img
-                  src="https://i.pravatar.cc/80?img=68"
-                  alt="admin"
-                  className="h-8 w-8 rounded-full object-cover"
-                />
+                <UserInitial name={user.username} className="h-8 w-8" />
                 <span className="hidden text-sm font-medium sm:inline">
-                  Ollie Bennett
+                  {user.username}
                 </span>
                 <ChevronDown className="h-4 w-4 text-slate-500" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Team</DropdownMenuItem>
-                <DropdownMenuItem>Billing</DropdownMenuItem>
+                <DropdownMenuLabel className="font-normal text-slate-500">
+                  {user.email}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={onLogout}>
                   <LogOut className="h-4 w-4" /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -124,21 +122,23 @@ export default function LayoutComponent({
 function SidebarInner({
   collapsed,
   isActive,
+  user,
   onNavigate,
 }: {
   collapsed: boolean;
   isActive: (to: string, exact?: boolean) => boolean;
+  user: AdminUser;
   onNavigate?: () => void;
 }) {
   return (
     <>
       <div className="flex h-16 items-center gap-2 border-b border-slate-800 px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-teal-deep text-white font-display text-lg">
-          W
+          T
         </div>
         {!collapsed && (
           <span className="font-display text-lg tracking-tight text-white">
-            Wayfare
+            TourFlow
           </span>
         )}
       </div>
@@ -169,24 +169,34 @@ function SidebarInner({
       </nav>
       <div className="border-t border-slate-800 p-3">
         <div className="flex items-center gap-3">
-          <img
-            src="https://i.pravatar.cc/80?img=68"
-            className="h-9 w-9 rounded-full object-cover"
-            alt="me"
-          />
+          <UserInitial name={user.username} className="h-9 w-9" />
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">
-                Ollie Bennett
+                {user.username}
               </p>
               <p className="truncate text-xs text-slate-400">
-                admin@wayfare.co
+                {user.email}
               </p>
             </div>
           )}
         </div>
       </div>
     </>
+  );
+}
+
+function UserInitial({ name, className }: { name: string; className: string }) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-teal-deep text-sm font-semibold uppercase text-white",
+        className,
+      )}
+      aria-hidden="true"
+    >
+      {name.charAt(0)}
+    </div>
   );
 }
 

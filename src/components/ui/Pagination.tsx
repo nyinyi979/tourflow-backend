@@ -9,13 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 
-export function usePaginated<T>(items: T[], page: number, pageSize: number) {
-  const total = items.length;
+export function usePaginated<T>(total: number, page: number, pageSize: number) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(page, pageCount);
   const start = (safePage - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
-  return { paged, total, pageCount, safePage, start };
+  // const paged = items.slice(start, start + pageSize);
+  return { paged: [], total, pageCount, safePage, start };
 }
 
 interface Props {
@@ -59,11 +58,21 @@ export function Pagination({
         </span>
         <div className="flex items-center gap-2">
           <span className="text-slate-500">Rows</span>
-          <Select value={String(pageSize)} onValueChange={(v) => { onPageSizeChange(+v); onPageChange(1); }}>
-            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => {
+              onPageSizeChange(+v);
+              onPageChange(1);
+            }}
+          >
+            <SelectTrigger className="h-8 w-20">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {[5, 10, 20, 50].map((n) => (
-                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -80,7 +89,9 @@ export function Pagination({
         </Button>
         {nums.map((n, i) =>
           n === "…" ? (
-            <span key={`e-${i}`} className="px-2 text-slate-400">…</span>
+            <span key={`e-${i}`} className="px-2 text-slate-400">
+              …
+            </span>
           ) : (
             <Button
               key={n}

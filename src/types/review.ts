@@ -1,19 +1,47 @@
-export interface Review {
+import {
+  DataResponse,
+  PaginatedResponse,
+  PaginationQuery,
+  ReviewStatus,
+  SortOrder,
+} from "./types";
+
+export interface PublicReview {
   id: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   date: string;
   rating: number;
   comment: string;
 }
 
-export interface AdminReview {
+export interface Review {
   id: string;
   customer: string;
-  avatar: string;
-  tour: string;
+  name: string;
+  avatar: string | null;
+  tour?: string;
+  tourId: string;
   rating: number;
   comment: string;
   date: string;
-  status: "published" | "hidden";
+  status: ReviewStatus;
 }
+
+export interface ReviewQuery extends PaginationQuery {
+  query?: string;
+  tourId?: string;
+  status?: ReviewStatus;
+  sortBy?: string;
+  orderBy?: SortOrder;
+}
+
+export interface UpdateReviewRequest {
+  id: string;
+  rating?: number;
+  comment?: string;
+  status?: ReviewStatus;
+}
+
+export type ReviewListResponse = PaginatedResponse<Review, ReviewQuery>;
+export type ReviewResponse = DataResponse<Review>;

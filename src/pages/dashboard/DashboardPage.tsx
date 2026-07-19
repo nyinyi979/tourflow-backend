@@ -26,12 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import {
-  adminBookings,
-  dashboardStats,
-  monthlyRevenue,
-  topTours,
-} from "@/mocks/admin-mocks";
+import { getDashboard } from "@/services/dashboard";
+import { getBookings } from "@/services/bookings";
+import { useQuery } from "@tanstack/react-query";
 
 export function StatCard({
   label,
@@ -76,7 +73,37 @@ export function StatCard({
 }
 
 export default function AdminDashboardPage() {
-  const recent = adminBookings.slice(0, 6);
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: getDashboard,
+  });
+  const bookingsQuery = useQuery({
+    queryKey: ["bookings", "dashboard-recent"],
+    queryFn: () =>
+      getBookings({
+        page: 0,
+        perPage: 6,
+        sortBy: "createdAt",
+        orderBy: "desc",
+      }),
+  });
+
+  if (dashboardQuery.isLoading) {
+    return (
+      <p className="py-10 text-center text-slate-500">Loading dashboard…</p>
+    );
+  }
+
+  if (dashboardQuery.isError || !dashboardQuery.data) {
+    return (
+      <p className="py-10 text-center text-rose-600">
+        Unable to load dashboard data.
+      </p>
+    );
+  }
+
+  const { dashboardStats, monthlyRevenue, topTours } = dashboardQuery.data;
+  const recent = bookingsQuery.data?.data ?? [];
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -172,8 +199,12 @@ export default function AdminDashboardPage() {
               <TableBody>
                 {recent.map((b) => (
                   <TableRow key={b.id}>
-                    <TableCell className="font-mono text-xs">{b.id}</TableCell>
-                    <TableCell>{b.customer.name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {b.bookingNumber}
+                    </TableCell>
+                    <TableCell>
+                      {b.customer?.name ?? "Deleted customer"}
+                    </TableCell>
                     <TableCell>{b.tour.name}</TableCell>
                     <TableCell>{b.travelDate}</TableCell>
                     <TableCell>{b.guests.adults + b.guests.children}</TableCell>
@@ -183,6 +214,16 @@ export default function AdminDashboardPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {!bookingsQuery.isLoading && recent.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-slate-500"
+                    >
+                      No bookings yet.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>

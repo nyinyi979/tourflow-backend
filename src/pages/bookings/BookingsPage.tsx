@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { Search, Download } from "lucide-react";
+import { useState } from "react";
+import { Download, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,71 +26,98 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import {
-  adminBookings,
-} from "@/mocks/admin-mocks";
 import { Pagination, usePaginated } from "@/components/ui/Pagination";
+import useDebouncedValue from "@/hooks/useDebouncedValue";
+import {
+  deleteBooking,
+  getBookings,
+  updateBooking,
+} from "@/services/bookings";
+import type { Booking } from "@/types/booking";
+import { BookingItemType, BookingStatus } from "@/types/types";
 import BookingDetails from "./components/BookingDetails";
-import { Booking } from "@/types/booking";
 
 export default function BookingsPage() {
-  const [rows, setRows] = useState<Booking[]>(adminBookings);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
+  const [status, setStatus] = useState<BookingStatus | "all">("all");
+  const [itemType, setItemType] = useState<BookingItemType | "all">("all");
   const [selected, setSelected] = useState<Booking | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [perPage, setPerPage] = useState(10);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((b) => {
-        const q = search.toLowerCase();
-        const matchQ =
-          !q ||
-          b.id.toLowerCase().includes(q) ||
-          b.customer.name.toLowerCase().includes(q);
-        const matchS = status === "all" || b.status === status;
-        const matchFrom = !from || b.travelDate >= from;
-        const matchTo = !to || b.travelDate <= to;
-        return matchQ && matchS && matchFrom && matchTo;
+  const bookingsQuery = useQuery({
+    queryKey: ["bookings", debouncedSearch, status, itemType, page, perPage],
+    queryFn: () =>
+      getBookings({
+        page: page - 1,
+        perPage,
+        query: debouncedSearch || undefined,
+        status: status === "all" ? undefined : status,
+        itemType: itemType === "all" ? undefined : itemType,
       }),
-    [rows, search, status, from, to],
-  );
-  const { paged, total, pageCount, safePage, start } = usePaginated(
-    filtered,
+    placeholderData: (previous) => previous,
+  });
+  const { total, pageCount, safePage, start } = usePaginated(
+    bookingsQuery.data?.total ?? 0,
     page,
-    pageSize,
+    perPage,
   );
 
-  function exportCsv() {
-    const header = "id,customer,email,tour,travelDate,guests,total,status\n";
-    const body = filtered
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      status: nextStatus,
+    }: {
+      id: string;
+      status: BookingStatus;
+    }) => updateBooking(id, { status: nextStatus }),
+    onSuccess: async (response) => {
+      setSelected(response.data);
+      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success(`Status updated to ${response.data.status}`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Update failed"),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteBooking,
+    onSuccess: async () => {
+      setSelected(null);
+      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Booking deleted");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Delete failed"),
+  });
+
+  const exportCsv = () => {
+    const rows = bookingsQuery.data?.data ?? [];
+    const header =
+      "bookingNumber,customer,email,item,travelDate,guests,total,status\n";
+    const body = rows
       .map(
-        (b) =>
-          `${b.id},"${b.customer.name}",${b.customer.email},"${b.tour.name}",${b.travelDate},${
-            b.guests.adults + b.guests.children
-          },${b.totalPrice},${b.status}`,
+        (booking) =>
+          `${booking.bookingNumber},"${booking.customer?.name ?? ""}",${booking.customer?.email ?? ""},"${booking.tour.name}",${booking.travelDate},${booking.guests.adults + booking.guests.children},${booking.totalPrice},${booking.status}`,
       )
       .join("\n");
-    const blob = new Blob([header + body], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "bookings.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Exported CSV");
-  }
-
-  function updateStatus(id: string, next: string) {
-    setRows((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: next } : b)),
+    const url = URL.createObjectURL(
+      new Blob([header + body], { type: "text/csv" }),
     );
-    setSelected((s) => (s && s.id === id ? { ...s, status: next } : s));
-    toast.success(`Status updated to ${next}`);
-  }
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "bookings.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exported the current page");
+  };
+  const confirmDelete = (booking: Booking) => {
+    if (window.confirm(`Delete booking "${booking.bookingNumber}"?`))
+      deleteMutation.mutate(booking.id);
+  };
 
   return (
     <>
@@ -97,13 +125,16 @@ export default function BookingsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            className="pl-9 bg-white"
-            placeholder="Search by ID or customer name…"
+            className="bg-white pl-9"
+            placeholder="Search by booking number…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <Select value={status} onValueChange={setStatus}>
+        <Select
+          value={status}
+          onValueChange={(next) => setStatus(next as BookingStatus | "all")}
+        >
           <SelectTrigger className="w-full bg-white lg:w-40">
             <SelectValue />
           </SelectTrigger>
@@ -115,25 +146,28 @@ export default function BookingsPage() {
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex gap-2">
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="bg-white"
-          />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="bg-white"
-          />
-        </div>
-        <Button variant="outline" onClick={exportCsv} className="bg-white">
-          <Download className="h-4 w-4" /> Export CSV
+        <Select
+          value={itemType}
+          onValueChange={(next) => setItemType(next as BookingItemType | "all")}
+        >
+          <SelectTrigger className="w-full bg-white lg:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All item types</SelectItem>
+            <SelectItem value="tour">Tours</SelectItem>
+            <SelectItem value="activity">Activities</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          onClick={exportCsv}
+          disabled={!bookingsQuery.data?.data.length}
+          className="bg-white"
+        >
+          <Download className="h-4 w-4" /> Export page
         </Button>
       </div>
-
       <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <Table>
           <TableHeader>
@@ -150,65 +184,126 @@ export default function BookingsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map((b) => (
+            {bookingsQuery.isLoading && (
+              <TableRow>
+                <TableCell
+                  colSpan={9}
+                  className="py-10 text-center text-slate-500"
+                >
+                  Loading bookings…
+                </TableCell>
+              </TableRow>
+            )}
+            {bookingsQuery.isError && (
+              <TableRow>
+                <TableCell
+                  colSpan={9}
+                  className="py-10 text-center text-rose-600"
+                >
+                  Unable to load bookings.
+                </TableCell>
+              </TableRow>
+            )}
+            {bookingsQuery.data?.data.map((booking) => (
               <TableRow
-                key={b.id}
+                key={booking.id}
                 className="cursor-pointer"
-                onClick={() => setSelected(b)}
+                onClick={() => setSelected(booking)}
               >
-                <TableCell className="font-mono text-xs">{b.id}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {booking.bookingNumber}
+                </TableCell>
                 <TableCell>
-                  <div className="font-medium">{b.customer.name}</div>
+                  <div className="font-medium">
+                    {booking.customer?.name ?? "Deleted customer"}
+                  </div>
                   <div className="text-xs text-slate-500">
-                    {b.customer.email}
+                    {booking.customer?.email}
                   </div>
                 </TableCell>
-                <TableCell>{b.tour.name}</TableCell>
-                <TableCell>{b.createdAt}</TableCell>
-                <TableCell>{b.travelDate}</TableCell>
+                <TableCell>{booking.tour.name}</TableCell>
                 <TableCell>
-                  {b.guests.adults}A / {b.guests.children}C
+                  {new Date(booking.createdAt).toLocaleDateString()}
                 </TableCell>
-                <TableCell>${b.totalPrice.toLocaleString()}</TableCell>
+                <TableCell>{booking.travelDate}</TableCell>
                 <TableCell>
-                  <StatusBadge status={b.status} />
+                  {booking.guests.adults}A / {booking.guests.children}C
+                </TableCell>
+                <TableCell>${booking.totalPrice.toLocaleString()}</TableCell>
+                <TableCell>
+                  <StatusBadge status={booking.status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelected(b);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelected(booking);
                     }}
                   >
                     View
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Delete ${booking.bookingNumber}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      confirmDelete(booking);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-rose-600" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
+            {!bookingsQuery.isLoading &&
+              !bookingsQuery.isError &&
+              !bookingsQuery.data?.data.length && (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="py-10 text-center text-slate-500"
+                  >
+                    No bookings found.
+                  </TableCell>
+                </TableRow>
+              )}
           </TableBody>
         </Table>
         <Pagination
           page={safePage}
-          pageSize={pageSize}
+          pageSize={perPage}
           total={total}
           pageCount={pageCount}
           start={start}
           onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          resetKey={`${search}|${status}|${from}|${to}`}
+          onPageSizeChange={setPerPage}
+          resetKey={`${search}|${status}|${itemType}`}
         />
       </div>
-
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Sheet
+        open={!!selected}
+        onOpenChange={(nextOpen) => !nextOpen && setSelected(null)}
+      >
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle className="font-mono">{selected.id}</SheetTitle>
+                <SheetTitle className="font-mono">
+                  {selected.bookingNumber}
+                </SheetTitle>
               </SheetHeader>
-              <BookingDetails {...selected} updateStatus={updateStatus} />
+              <BookingDetails
+                booking={selected}
+                updating={updateMutation.isPending}
+                updateStatus={(id, nextStatus) =>
+                  updateMutation
+                    .mutateAsync({ id, status: nextStatus })
+                    .then(() => undefined)
+                }
+              />
             </>
           )}
         </SheetContent>

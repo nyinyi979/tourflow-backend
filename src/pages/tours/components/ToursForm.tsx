@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Label } from "../../../components/ui/Label";
-import { Input } from "../../../components/ui/Input";
-import { Textarea } from "../../../components/ui/Textarea";
+import { FormEvent, useState } from "react";
+import { Plus, X } from "lucide-react";
+import ImagePicker, { ImagePickerValue } from "@/components/ImagePicker";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 import {
   Select,
   SelectContent,
@@ -9,36 +11,132 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { Switch } from "../../../components/ui/Switch";
-import { Plus, Upload, X } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
-import { TourRow } from "../types";
+import { Textarea } from "@/components/ui/Textarea";
+import type { Category } from "@/types/category";
+import { MAX_FILE_SIZE, uploadTemporaryFile } from "@/services/file";
+import type { CreateTourRequest } from "@/types/tour";
+
+export type TourFormData = CreateTourRequest & { id?: string };
 
 export default function TourForm({
   value,
+  categories,
   onSave,
   onCancel,
 }: {
-  value: TourRow;
-  onSave: (v: TourRow) => void;
+  value: TourFormData;
+  categories: Category[];
+  onSave: (value: TourFormData) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [v, setV] = useState<TourRow>(value);
-  const set = <K extends keyof TourRow>(k: K, val: TourRow[K]) =>
-    setV((p) => ({ ...p, [k]: val }));
+  const [tour, setTour] = useState(value);
+  const originalImages = value.images ?? [];
+  const [images, setImages] = useState<ImagePickerValue[]>(
+    originalImages.map((image) => image.url),
+  );
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const set = <K extends keyof TourFormData>(key: K, next: TourFormData[K]) =>
+    setTour((current) => ({ ...current, [key]: next }));
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitError(null);
+    if (!tour.slug.trim() || !tour.title.trim() || !tour.description.trim()) {
+      setSubmitError("Slug, title, and description are required");
+      return;
+    }
+    if (
+      !tour.categoryId ||
+      tour.price <= 0 ||
+      tour.duration < 1 ||
+      tour.capacity < 1
+    ) {
+      setSubmitError("Category, price, duration, and capacity are required");
+      return;
+    }
+    if ((tour.highlights ?? []).some((highlight) => !highlight.label.trim())) {
+      setSubmitError("Highlights cannot be empty");
+      return;
+    }
+    if (
+      (tour.itinerary ?? []).some(
+        (day) => day.day < 1 || !day.title.trim() || !day.description.trim(),
+      )
+    ) {
+      setSubmitError("Every itinerary day needs a day, title, and description");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const uploadedImages = await Promise.all(
+        images.map(async (image) => {
+          if (image instanceof File) {
+            return { url: (await uploadTemporaryFile(image)).data.url };
+          }
+          return (
+            originalImages.find((existing) => existing.url === image) ?? {
+              url: image,
+            }
+          );
+        }),
+      );
+      const retainedUrls = new Set(uploadedImages.map((image) => image.url));
+      await onSave({
+        ...tour,
+        slug: tour.slug.trim(),
+        title: tour.title.trim(),
+        description: tour.description.trim(),
+        images: uploadedImages,
+        highlights: (tour.highlights ?? []).map((highlight) => ({
+          ...highlight,
+          label: highlight.label.trim(),
+        })),
+        itinerary: (tour.itinerary ?? []).map((day) => ({
+          ...day,
+          title: day.title.trim(),
+          description: day.description.trim(),
+        })),
+        removedImageUrls: originalImages
+          .filter((image) => !retainedUrls.has(image.url))
+          .map((image) => image.url),
+      });
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Unable to save tour",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="mt-4 space-y-4 pb-6">
-      <div>
-        <Label>Title</Label>
-        <Input value={v.title} onChange={(e) => set("title", e.target.value)} />
+    <form className="mt-4 space-y-4 pb-6" onSubmit={submit}>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Title</Label>
+          <Input
+            value={tour.title}
+            onChange={(event) => set("title", event.target.value)}
+          />
+        </div>
+        <div>
+          <Label>Slug</Label>
+          <Input
+            value={tour.slug}
+            onChange={(event) => set("slug", event.target.value)}
+          />
+        </div>
       </div>
       <div>
         <Label>Description</Label>
         <Textarea
-          rows={3}
-          value={v.description}
-          onChange={(e) => set("description", e.target.value)}
+          rows={4}
+          value={tour.description}
+          onChange={(event) => set("description", event.target.value)}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -46,23 +144,25 @@ export default function TourForm({
           <Label>Price ($)</Label>
           <Input
             type="number"
-            value={v.price}
-            onChange={(e) => set("price", +e.target.value)}
+            min={0}
+            value={tour.price}
+            onChange={(event) => set("price", +event.target.value)}
           />
         </div>
         <div>
           <Label>Duration (days)</Label>
           <Input
             type="number"
-            value={v.duration}
-            onChange={(e) => set("duration", +e.target.value)}
+            min={1}
+            value={tour.duration}
+            onChange={(event) => set("duration", +event.target.value)}
           />
         </div>
         <div>
           <Label>Difficulty</Label>
           <Select
-            value={v.difficulty}
-            onValueChange={(x) => set("difficulty", x as TourRow["difficulty"])}
+            value={tour.difficulty}
+            onValueChange={(next) => set("difficulty", next)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -77,17 +177,18 @@ export default function TourForm({
         <div>
           <Label>Category</Label>
           <Select
-            value={v.category}
-            onValueChange={(x) => set("category", x as TourRow["category"])}
+            value={tour.categoryId}
+            onValueChange={(next) => set("categoryId", next)}
           >
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Adventure">Adventure</SelectItem>
-              <SelectItem value="Cultural">Cultural</SelectItem>
-              <SelectItem value="Family">Family</SelectItem>
-              <SelectItem value="Luxury">Luxury</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -95,28 +196,26 @@ export default function TourForm({
           <Label>Capacity</Label>
           <Input
             type="number"
-            value={v.capacity}
-            onChange={(e) => set("capacity", +e.target.value)}
+            min={1}
+            value={tour.capacity}
+            onChange={(event) => set("capacity", +event.target.value)}
           />
-        </div>
-        <div className="flex items-end gap-3">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={v.status === "active"}
-              onCheckedChange={(x) => set("status", x ? "active" : "inactive")}
-            />
-            <Label>Active</Label>
-          </div>
         </div>
       </div>
 
-      <div>
-        <Label>Images</Label>
-        <div className="mt-1 flex h-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-          <Upload className="mb-1 h-5 w-5" />
-          Drag & drop or click to upload (mock)
-        </div>
-      </div>
+      <ImagePicker
+        multiple
+        label="Images"
+        helperText="Each image can be up to 5 MB"
+        value={images}
+        maxSize={MAX_FILE_SIZE}
+        disabled={submitting}
+        onChange={(next) => {
+          setImages(next);
+          setSubmitError(null);
+        }}
+        onErrorChange={setImageError}
+      />
 
       <div>
         <div className="flex items-center justify-between">
@@ -127,8 +226,12 @@ export default function TourForm({
             size="sm"
             onClick={() =>
               set("itinerary", [
-                ...v.itinerary,
-                { day: v.itinerary.length + 1, title: "", description: "" },
+                ...(tour.itinerary ?? []),
+                {
+                  day: (tour.itinerary?.length ?? 0) + 1,
+                  title: "",
+                  description: "",
+                },
               ])
             }
           >
@@ -136,35 +239,68 @@ export default function TourForm({
           </Button>
         </div>
         <div className="mt-2 space-y-2">
-          {v.itinerary.map((d, i) => (
-            <div key={i} className="flex gap-2">
+          {(tour.itinerary ?? []).map((day, index) => (
+            <div
+              key={day.id ?? index}
+              className="grid grid-cols-[4rem_1fr_auto] gap-2"
+            >
               <Input
-                className="w-16"
                 type="number"
-                value={d.day}
-                onChange={(e) => {
-                  const arr = [...v.itinerary];
-                  arr[i] = { ...d, day: +e.target.value };
-                  set("itinerary", arr);
-                }}
+                min={1}
+                value={day.day}
+                onChange={(event) =>
+                  set(
+                    "itinerary",
+                    (tour.itinerary ?? []).map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, day: +event.target.value }
+                        : item,
+                    ),
+                  )
+                }
               />
-              <Input
-                placeholder="Description"
-                value={d.description}
-                onChange={(e) => {
-                  const arr = [...v.itinerary];
-                  arr[i] = { ...d, description: e.target.value };
-                  set("itinerary", arr);
-                }}
-              />
+              <div className="space-y-2">
+                <Input
+                  placeholder="Title"
+                  value={day.title}
+                  onChange={(event) =>
+                    set(
+                      "itinerary",
+                      (tour.itinerary ?? []).map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, title: event.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                />
+                <Textarea
+                  rows={2}
+                  placeholder="Description"
+                  value={day.description}
+                  onChange={(event) =>
+                    set(
+                      "itinerary",
+                      (tour.itinerary ?? []).map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, description: event.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                />
+              </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
+                aria-label="Remove itinerary day"
                 onClick={() =>
                   set(
                     "itinerary",
-                    v.itinerary.filter((_, j) => j !== i),
+                    (tour.itinerary ?? []).filter(
+                      (_, itemIndex) => itemIndex !== index,
+                    ),
                   )
                 }
               >
@@ -182,30 +318,40 @@ export default function TourForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => set("highlights", [...v.highlights, ""])}
+            onClick={() =>
+              set("highlights", [...(tour.highlights ?? []), { label: "" }])
+            }
           >
             <Plus className="h-3 w-3" /> Add
           </Button>
         </div>
         <div className="mt-2 space-y-2">
-          {v.highlights.map((h, i) => (
-            <div key={i} className="flex gap-2">
+          {(tour.highlights ?? []).map((highlight, index) => (
+            <div key={highlight.id ?? index} className="flex gap-2">
               <Input
-                value={h}
-                onChange={(e) => {
-                  const arr = [...v.highlights];
-                  arr[i] = e.target.value;
-                  set("highlights", arr);
-                }}
+                value={highlight.label}
+                onChange={(event) =>
+                  set(
+                    "highlights",
+                    (tour.highlights ?? []).map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, label: event.target.value }
+                        : item,
+                    ),
+                  )
+                }
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
+                aria-label="Remove highlight"
                 onClick={() =>
                   set(
                     "highlights",
-                    v.highlights.filter((_, j) => j !== i),
+                    (tour.highlights ?? []).filter(
+                      (_, itemIndex) => itemIndex !== index,
+                    ),
                   )
                 }
               >
@@ -216,17 +362,19 @@ export default function TourForm({
         </div>
       </div>
 
+      {submitError && <p className="text-xs text-rose-600">{submitError}</p>}
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button
+          type="submit"
+          disabled={submitting || !!imageError}
           className="bg-teal-deep hover:bg-teal-deep/90"
-          onClick={() => onSave(v)}
         >
-          Save
+          {submitting ? "Saving…" : "Save"}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -16,39 +17,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/Table";
-import { adminBookings, adminCustomers } from "@/mocks/admin-mocks";
-import { Pagination, usePaginated } from "../../components/ui/Pagination";
-import { Customer } from "@/types/customer";
+import { Pagination, usePaginated } from "@/components/ui/Pagination";
+import useDebouncedValue from "@/hooks/useDebouncedValue";
+import { getCustomers } from "@/services/customers";
+import type { Customer } from "@/types/customer";
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
-  const [from, setFrom] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [perPage, setPerPage] = useState(10);
 
-  const filtered = useMemo(
-    () =>
-      adminCustomers.filter((c) => {
-        const q = search.toLowerCase();
-        const matchQ =
-          !q ||
-          c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q);
-        const matchDate = !from || c.registeredAt >= from;
-        return matchQ && matchDate;
+  const customersQuery = useQuery({
+    queryKey: ["customers", debouncedSearch, page, perPage],
+    queryFn: () =>
+      getCustomers({
+        page: page - 1,
+        perPage,
+        query: debouncedSearch || undefined,
       }),
-    [search, from],
-  );
-  const { paged, total, pageCount, safePage, start } = usePaginated(
-    filtered,
+    placeholderData: (previous) => previous,
+  });
+  const { total, pageCount, safePage, start } = usePaginated(
+    customersQuery.data?.total ?? 0,
     page,
-    pageSize,
+    perPage,
   );
-
-  const custBookings = selected
-    ? adminBookings.filter((b) => b.customer.email === selected.email)
-    : [];
 
   return (
     <>
@@ -56,21 +51,13 @@ export default function CustomersPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            className="pl-9 bg-white"
+            className="bg-white pl-9"
             placeholder="Search by name or email…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <Input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          className="bg-white sm:w-52"
-          placeholder="Registered after"
-        />
       </div>
-
       <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <Table>
           <TableHeader>
@@ -85,46 +72,88 @@ export default function CustomersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell>
-                  <img
-                    src={c.avatar}
-                    className="h-9 w-9 rounded-full object-cover"
-                    alt=""
-                  />
+            {customersQuery.isLoading && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-slate-500"
+                >
+                  Loading customers…
                 </TableCell>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell className="text-slate-600">{c.email}</TableCell>
-                <TableCell>{c.totalBookings}</TableCell>
-                <TableCell>${c.totalSpent.toLocaleString()}</TableCell>
-                <TableCell>{c.registeredAt}</TableCell>
+              </TableRow>
+            )}
+            {customersQuery.isError && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-rose-600"
+                >
+                  Unable to load customers.
+                </TableCell>
+              </TableRow>
+            )}
+            {customersQuery.data?.data.map((customer) => (
+              <TableRow key={customer.id}>
+                <TableCell>
+                  {customer.avatar ? (
+                    <img
+                      src={customer.avatar}
+                      className="h-9 w-9 rounded-full object-cover"
+                      alt={customer.name}
+                    />
+                  ) : (
+                    <div className="h-9 w-9 rounded-full bg-slate-100" />
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">{customer.name}</TableCell>
+                <TableCell className="text-slate-600">
+                  {customer.email}
+                </TableCell>
+                <TableCell>{customer.totalBookings}</TableCell>
+                <TableCell>${customer.totalSpent.toLocaleString()}</TableCell>
+                <TableCell>
+                  {new Date(customer.registeredAt).toLocaleDateString()}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelected(c)}
+                    onClick={() => setSelected(customer)}
                   >
                     View
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
+            {!customersQuery.isLoading &&
+              !customersQuery.isError &&
+              !customersQuery.data?.data.length && (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="py-10 text-center text-slate-500"
+                  >
+                    No customers found.
+                  </TableCell>
+                </TableRow>
+              )}
           </TableBody>
         </Table>
         <Pagination
           page={safePage}
-          pageSize={pageSize}
+          pageSize={perPage}
           total={total}
           pageCount={pageCount}
           start={start}
           onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          resetKey={`${search}|${from}`}
+          onPageSizeChange={setPerPage}
+          resetKey={search}
         />
       </div>
-
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Sheet
+        open={!!selected}
+        onOpenChange={(nextOpen) => !nextOpen && setSelected(null)}
+      >
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           {selected && (
             <>
@@ -133,22 +162,26 @@ export default function CustomersPage() {
               </SheetHeader>
               <div className="mt-4 space-y-5">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={selected.avatar}
-                    className="h-16 w-16 rounded-full object-cover"
-                    alt=""
-                  />
+                  {selected.avatar ? (
+                    <img
+                      src={selected.avatar}
+                      className="h-16 w-16 rounded-full object-cover"
+                      alt={selected.name}
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-slate-100" />
+                  )}
                   <div>
                     <div className="font-display text-lg">{selected.name}</div>
                     <div className="text-sm text-slate-500">
                       {selected.email}
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      Since {selected.registeredAt}
+                      Since{" "}
+                      {new Date(selected.registeredAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div className="text-xs uppercase tracking-wider text-slate-500">
@@ -165,48 +198,6 @@ export default function CustomersPage() {
                     <div className="mt-1 text-xl font-semibold">
                       ${selected.totalSpent.toLocaleString()}
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Bookings
-                  </h4>
-                  <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Tour</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {custBookings.length === 0 && (
-                          <TableRow>
-                            <TableCell
-                              colSpan={4}
-                              className="text-center text-sm text-slate-500"
-                            >
-                              No bookings yet
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {custBookings.map((b) => (
-                          <TableRow key={b.id}>
-                            <TableCell className="font-mono text-xs">
-                              {b.id}
-                            </TableCell>
-                            <TableCell>{b.tour.name}</TableCell>
-                            <TableCell>{b.travelDate}</TableCell>
-                            <TableCell>
-                              ${b.totalPrice.toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
                 </div>
               </div>
