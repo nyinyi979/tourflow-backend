@@ -11,16 +11,23 @@ export interface Booking {
   id: string;
   bookingNumber: string;
   customer: { name: string; email: string; avatar: string | null } | null;
-  tour: { name: string; type: BookingItemType };
+  itemType: BookingItemType;
+  tour: { title: string } | null;
+  activity: { title: string } | null;
   tourId: string | null;
   activityId: string | null;
   customerId: string;
   travelDate: string;
   createdAt: string;
-  guests: { adults: number; children: number };
+  adults: number;
+  children: number;
   totalPrice: number;
   status: BookingStatus;
-  activity: Array<{ at: string; label: string }>;
+  paymentStatus: "unpaid" | "paid";
+  paymentMethod: "card" | "wallet" | null;
+  paymentReference: string | null;
+  paidAt: string | null;
+  events: Array<{ occurredAt: string; label: string }>;
 }
 
 export interface BookingQuery extends PaginationQuery {

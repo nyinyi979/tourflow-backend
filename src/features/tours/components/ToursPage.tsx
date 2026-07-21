@@ -3,6 +3,7 @@ import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -45,6 +46,7 @@ export default function ToursPage() {
   const [categoryId, setCategoryId] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
   const [editing, setEditing] = useState<TourFormData | null>(null);
+  const [deleting, setDeleting] = useState<Tour | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -83,6 +85,7 @@ export default function ToursPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: tourKeys.all });
       toast.success("Tour deleted");
+      setDeleting(null);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Delete failed"),
@@ -107,11 +110,6 @@ export default function ToursPage() {
       removedImageUrls: [],
     });
     setOpen(true);
-  };
-
-  const confirmDelete = (tour: Tour) => {
-    if (window.confirm(`Delete "${tour.title}"?`))
-      deleteMutation.mutate(tour.id);
   };
 
   return (
@@ -207,7 +205,7 @@ export default function ToursPage() {
                   )}
                 </TableCell>
                 <TableCell className="font-medium">{tour.title}</TableCell>
-                <TableCell>{tour.category}</TableCell>
+                <TableCell>{tour.category.label}</TableCell>
                 <TableCell>${tour.price.toLocaleString()}</TableCell>
                 <TableCell>{tour.duration}d</TableCell>
                 <TableCell>{tour.difficulty}</TableCell>
@@ -228,7 +226,8 @@ export default function ToursPage() {
                     variant="ghost"
                     size="sm"
                     aria-label={`Delete ${tour.title}`}
-                    onClick={() => confirmDelete(tour)}
+                    disabled={deleteMutation.isPending}
+                    onClick={() => setDeleting(tour)}
                   >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
@@ -284,6 +283,14 @@ export default function ToursPage() {
           )}
         </SheetContent>
       </Sheet>
+      <DeleteConfirmDialog
+        open={!!deleting}
+        title={`Delete “${deleting?.title ?? "tour"}”?`}
+        description="This permanently removes the tour, its itinerary, highlights, and images. This action cannot be undone."
+        pending={deleteMutation.isPending}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </>
   );
 }

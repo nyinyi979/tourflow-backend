@@ -33,7 +33,7 @@ export interface CreateActivityRequest {
 
 export interface Activity extends CreateActivityRequest {
   id: string;
-  category: string;
+  category: { label: string };
   rating: number;
   images: Array<ActivityImageInput & { id: string }>;
   highlights: Array<ActivityLabelInput & { id: string }>;

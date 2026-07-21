@@ -8,23 +8,22 @@ import {
 
 export interface PublicReview {
   id: string;
-  name: string;
+  customerName: string;
   avatar: string | null;
-  date: string;
+  reviewedAt: string;
   rating: number;
   comment: string;
 }
 
 export interface Review {
   id: string;
-  customer: string;
-  name: string;
+  customerName: string;
   avatar: string | null;
-  tour?: string;
+  tour?: { id: string; title: string };
   tourId: string;
   rating: number;
   comment: string;
-  date: string;
+  reviewedAt: string;
   status: ReviewStatus;
 }
 

@@ -3,6 +3,7 @@ import { Download, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +47,7 @@ export default function BookingsPage() {
   const [status, setStatus] = useState<BookingStatus | "all">("all");
   const [itemType, setItemType] = useState<BookingItemType | "all">("all");
   const [selected, setSelected] = useState<Booking | null>(null);
+  const [deleting, setDeleting] = useState<Booking | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
@@ -88,6 +90,7 @@ export default function BookingsPage() {
       await queryClient.invalidateQueries({ queryKey: bookingKeys.all });
       await queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       toast.success("Booking deleted");
+      setDeleting(null);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Delete failed"),
@@ -98,11 +101,6 @@ export default function BookingsPage() {
     downloadCsv("bookings.csv", buildBookingsCsv(rows));
     toast.success("Exported the current page");
   };
-  const confirmDelete = (booking: Booking) => {
-    if (window.confirm(`Delete booking "${booking.bookingNumber}"?`))
-      deleteMutation.mutate(booking.id);
-  };
-
   return (
     <>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -205,13 +203,17 @@ export default function BookingsPage() {
                     {booking.customer?.email}
                   </div>
                 </TableCell>
-                <TableCell>{booking.tour.name}</TableCell>
+                <TableCell>
+                  {booking.tour?.title ??
+                    booking.activity?.title ??
+                    "Deleted item"}
+                </TableCell>
                 <TableCell>
                   {new Date(booking.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>{booking.travelDate}</TableCell>
                 <TableCell>
-                  {booking.guests.adults}A / {booking.guests.children}C
+                  {booking.adults}A / {booking.children}C
                 </TableCell>
                 <TableCell>${booking.totalPrice.toLocaleString()}</TableCell>
                 <TableCell>
@@ -232,9 +234,10 @@ export default function BookingsPage() {
                     variant="ghost"
                     size="sm"
                     aria-label={`Delete ${booking.bookingNumber}`}
+                    disabled={deleteMutation.isPending}
                     onClick={(event) => {
                       event.stopPropagation();
-                      confirmDelete(booking);
+                      setDeleting(booking);
                     }}
                   >
                     <Trash2 className="h-4 w-4 text-rose-600" />
@@ -292,6 +295,14 @@ export default function BookingsPage() {
           )}
         </SheetContent>
       </Sheet>
+      <DeleteConfirmDialog
+        open={!!deleting}
+        title={`Delete booking “${deleting?.bookingNumber ?? ""}”?`}
+        description="This permanently removes the booking record. This action cannot be undone."
+        pending={deleteMutation.isPending}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </>
   );
 }

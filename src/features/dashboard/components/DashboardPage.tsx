@@ -200,9 +200,11 @@ export default function AdminDashboardPage() {
                     <TableCell>
                       {b.customer?.name ?? "Deleted customer"}
                     </TableCell>
-                    <TableCell>{b.tour.name}</TableCell>
+                    <TableCell>
+                      {b.tour?.title ?? b.activity?.title ?? "Deleted item"}
+                    </TableCell>
                     <TableCell>{b.travelDate}</TableCell>
-                    <TableCell>{b.guests.adults + b.guests.children}</TableCell>
+                    <TableCell>{b.adults + b.children}</TableCell>
                     <TableCell>${b.totalPrice.toLocaleString()}</TableCell>
                     <TableCell>
                       <StatusBadge status={b.status} />

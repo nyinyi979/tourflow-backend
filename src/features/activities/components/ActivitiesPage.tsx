@@ -3,6 +3,7 @@ import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,6 +44,7 @@ export default function ActivitiesPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [categoryId, setCategoryId] = useState("all");
   const [editing, setEditing] = useState<ActivityFormData | null>(null);
+  const [deleting, setDeleting] = useState<Activity | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -80,6 +82,7 @@ export default function ActivitiesPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: activityKeys.all });
       toast.success("Activity deleted");
+      setDeleting(null);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Delete failed"),
@@ -103,11 +106,6 @@ export default function ActivitiesPage() {
     });
     setOpen(true);
   };
-  const confirmDelete = (activity: Activity) => {
-    if (window.confirm(`Delete "${activity.title}"?`))
-      deleteMutation.mutate(activity.id);
-  };
-
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -189,7 +187,7 @@ export default function ActivitiesPage() {
                   )}
                 </TableCell>
                 <TableCell className="font-medium">{activity.title}</TableCell>
-                <TableCell>{activity.category}</TableCell>
+                <TableCell>{activity.category.label}</TableCell>
                 <TableCell>${activity.price.toLocaleString()}</TableCell>
                 <TableCell>{activity.duration}h</TableCell>
                 <TableCell>{activity.rating}</TableCell>
@@ -209,7 +207,8 @@ export default function ActivitiesPage() {
                     variant="ghost"
                     size="sm"
                     aria-label={`Delete ${activity.title}`}
-                    onClick={() => confirmDelete(activity)}
+                    disabled={deleteMutation.isPending}
+                    onClick={() => setDeleting(activity)}
                   >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
@@ -262,6 +261,14 @@ export default function ActivitiesPage() {
           )}
         </SheetContent>
       </Sheet>
+      <DeleteConfirmDialog
+        open={!!deleting}
+        title={`Delete “${deleting?.title ?? "activity"}”?`}
+        description="This permanently removes the activity, its included items, highlights, and images. This action cannot be undone."
+        pending={deleteMutation.isPending}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </>
   );
 }

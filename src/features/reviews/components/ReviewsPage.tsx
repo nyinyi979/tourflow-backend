@@ -3,6 +3,7 @@ import { Eye, EyeOff, Search, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +38,7 @@ export default function ReviewsPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [tourId, setTourId] = useState("all");
   const [status, setStatus] = useState<ReviewStatus | "all">("all");
+  const [deleting, setDeleting] = useState<Review | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
@@ -85,15 +87,11 @@ export default function ReviewsPage() {
       await queryClient.invalidateQueries({ queryKey: reviewKeys.all });
       await queryClient.invalidateQueries({ queryKey: tourKeys.all });
       toast.success("Review deleted");
+      setDeleting(null);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Delete failed"),
   });
-  const confirmDelete = (review: Review) => {
-    if (window.confirm(`Delete ${review.customer}'s review?`))
-      deleteMutation.mutate(review.id);
-  };
-
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -175,15 +173,15 @@ export default function ReviewsPage() {
                       <img
                         src={review.avatar}
                         className="h-8 w-8 rounded-full object-cover"
-                        alt={review.customer}
+                        alt={review.customerName}
                       />
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-slate-100" />
                     )}
-                    <span className="font-medium">{review.customer}</span>
+                    <span className="font-medium">{review.customerName}</span>
                   </div>
                 </TableCell>
-                <TableCell>{review.tour ?? "Deleted tour"}</TableCell>
+                <TableCell>{review.tour?.title ?? "Deleted tour"}</TableCell>
                 <TableCell>
                   <div className="flex text-amber-500">
                     {Array.from({ length: review.rating }).map((_, index) => (
@@ -195,7 +193,7 @@ export default function ReviewsPage() {
                   {review.comment}
                 </TableCell>
                 <TableCell>
-                  {new Date(review.date).toLocaleDateString()}
+                  {new Date(review.reviewedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={review.status} />
@@ -228,7 +226,8 @@ export default function ReviewsPage() {
                     variant="ghost"
                     size="sm"
                     aria-label="Delete review"
-                    onClick={() => confirmDelete(review)}
+                    disabled={deleteMutation.isPending}
+                    onClick={() => setDeleting(review)}
                   >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
@@ -260,6 +259,14 @@ export default function ReviewsPage() {
           resetKey={`${search}|${tourId}|${status}`}
         />
       </div>
+      <DeleteConfirmDialog
+        open={!!deleting}
+        title={`Delete ${deleting?.customerName ?? "customer"}’s review?`}
+        description="This permanently removes the review and updates the related tour’s review totals. This action cannot be undone."
+        pending={deleteMutation.isPending}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </>
   );
 }

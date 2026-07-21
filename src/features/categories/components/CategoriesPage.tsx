@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -28,12 +29,14 @@ import {
 } from "../api";
 import { categoryKeys, categoryListQueryOptions } from "../queries";
 import useDebouncedValue from "@/hooks/useDebouncedValue";
+import type { Category } from "../types";
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
   const [editing, setEditing] = useState<CategoryFormData | null>(null);
+  const [deleting, setDeleting] = useState<Category | null>(null);
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -85,6 +88,7 @@ export default function CategoriesPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: categoryKeys.all });
       toast.success("Category deleted");
+      setDeleting(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Delete failed");
@@ -93,11 +97,6 @@ export default function CategoriesPage() {
 
   const save = (category: CategoryFormData) =>
     saveCategoryMutation.mutateAsync(category).then(() => undefined);
-
-  const confirmDelete = (category: CategoryFormData & { id: string }) => {
-    if (!window.confirm(`Delete "${category.label}"?`)) return;
-    deleteMutation.mutate(category.id);
-  };
 
   return (
     <>
@@ -193,7 +192,7 @@ export default function CategoriesPage() {
                     disabled={
                       saveCategoryMutation.isPending || deleteMutation.isPending
                     }
-                    onClick={() => confirmDelete(category)}
+                    onClick={() => setDeleting(category)}
                   >
                     <Trash2 className="h-4 w-4 text-rose-600" />
                   </Button>
@@ -246,6 +245,14 @@ export default function CategoriesPage() {
           )}
         </SheetContent>
       </Sheet>
+      <DeleteConfirmDialog
+        open={!!deleting}
+        title={`Delete “${deleting?.label ?? "category"}”?`}
+        description="This permanently removes the category. Categories that are still used by tours or activities cannot be deleted."
+        pending={deleteMutation.isPending}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </>
   );
 }

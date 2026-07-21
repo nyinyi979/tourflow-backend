@@ -43,7 +43,7 @@ export interface CreateTourRequest {
 
 export interface Tour extends CreateTourRequest {
   id: string;
-  category: string;
+  category: { label: string };
   rating: number;
   reviewCount: number;
   popularity: number;

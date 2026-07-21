@@ -19,9 +19,9 @@ export const buildBookingsCsv = (bookings: Booking[]) => {
       booking.bookingNumber,
       booking.customer?.name ?? "",
       booking.customer?.email ?? "",
-      booking.tour.name,
+      booking.tour?.title ?? booking.activity?.title ?? "Deleted item",
       booking.travelDate,
-      booking.guests.adults + booking.guests.children,
+      booking.adults + booking.children,
       booking.totalPrice,
       booking.status,
     ]

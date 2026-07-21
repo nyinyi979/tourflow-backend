@@ -54,15 +54,17 @@ export default function BookingDetails({
         </h4>
         <dl className="mt-2 grid grid-cols-2 gap-y-2">
           <dt className="text-slate-500">Item</dt>
-          <dd>{booking.tour.name}</dd>
+          <dd>
+            {booking.tour?.title ?? booking.activity?.title ?? "Deleted item"}
+          </dd>
           <dt className="text-slate-500">Type</dt>
-          <dd className="capitalize">{booking.tour.type}</dd>
+          <dd className="capitalize">{booking.itemType}</dd>
           <dt className="text-slate-500">Travel date</dt>
           <dd>{booking.travelDate}</dd>
           <dt className="text-slate-500">Adults</dt>
-          <dd>{booking.guests.adults}</dd>
+          <dd>{booking.adults}</dd>
           <dt className="text-slate-500">Children</dt>
-          <dd>{booking.guests.children}</dd>
+          <dd>{booking.children}</dd>
           <dt className="text-slate-500">Total</dt>
           <dd className="font-medium">
             ${booking.totalPrice.toLocaleString()}
@@ -94,18 +96,40 @@ export default function BookingDetails({
           </Select>
         </div>
       </section>
+      <section className="rounded-lg border border-slate-200 p-4 text-sm">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Payment
+        </h4>
+        <dl className="mt-2 grid grid-cols-2 gap-y-2">
+          <dt className="text-slate-500">Status</dt>
+          <dd className="capitalize">{booking.paymentStatus}</dd>
+          <dt className="text-slate-500">Method</dt>
+          <dd className="capitalize">{booking.paymentMethod ?? "—"}</dd>
+          <dt className="text-slate-500">Reference</dt>
+          <dd>{booking.paymentReference ?? "—"}</dd>
+          <dt className="text-slate-500">Paid at</dt>
+          <dd>
+            {booking.paidAt
+              ? new Date(booking.paidAt).toLocaleString()
+              : "—"}
+          </dd>
+        </dl>
+      </section>
       <section className="rounded-lg border border-slate-200 p-4">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Activity log
         </h4>
         <ul className="mt-2 space-y-2 text-sm">
-          {booking.activity.map((event, index) => (
-            <li key={`${event.at}-${index}`} className="flex items-start gap-3">
+          {booking.events.map((event, index) => (
+            <li
+              key={`${event.occurredAt}-${index}`}
+              className="flex items-start gap-3"
+            >
               <span className="mt-1 h-2 w-2 rounded-full bg-teal-deep" />
               <div>
                 <div>{event.label}</div>
                 <div className="text-xs text-slate-500">
-                  {new Date(event.at).toLocaleString()}
+                  {new Date(event.occurredAt).toLocaleString()}
                 </div>
               </div>
             </li>
