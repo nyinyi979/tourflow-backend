@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronDown, Menu, LogOut } from "lucide-react";
-import { Toaster } from "@/components/ui/Sooner";
+import { Toaster } from "@/components/ui/sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +9,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/DropdownMenu";
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { navItems } from "@/main";
-import type { AdminUser } from "@/types/auth";
+import { navItems } from "@/app/navigation";
+import type { AdminUser } from "@/features/auth/types";
 
 export default function LayoutComponent({
   title,
@@ -197,28 +197,5 @@ function UserInitial({ name, className }: { name: string; className: string }) {
     >
       {name.charAt(0)}
     </div>
-  );
-}
-
-export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-800",
-    confirmed: "bg-emerald-100 text-emerald-800",
-    cancelled: "bg-rose-100 text-rose-800",
-    completed: "bg-slate-200 text-slate-800",
-    published: "bg-emerald-100 text-emerald-800",
-    hidden: "bg-slate-200 text-slate-700",
-    active: "bg-emerald-100 text-emerald-800",
-    inactive: "bg-slate-200 text-slate-700",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        map[status] ?? "bg-slate-100 text-slate-700",
-      )}
-    >
-      {status}
-    </span>
   );
 }

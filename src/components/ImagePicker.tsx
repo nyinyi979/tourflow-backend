@@ -8,9 +8,9 @@ import {
   useState,
 } from "react";
 import { ImagePlus, Upload, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Label } from "@/components/ui/Label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export type ImagePickerValue = File | string;
@@ -151,7 +151,7 @@ export default function ImagePicker(props: ImagePickerProps) {
 
   return (
     <div>
-      {props.label && <Label>{props.label}</Label>}
+      {props.label && <Label htmlFor={inputId}>{props.label}</Label>}
       {props.helperText && (
         <p className="mt-1 text-xs text-slate-500">{props.helperText}</p>
       )}

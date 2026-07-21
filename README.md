@@ -1,73 +1,98 @@
-# React + TypeScript + Vite
+# TourFlow admin dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Internal administration application for TourFlow. It manages catalog content,
+customers, bookings, reviews, and dashboard reporting through the TourFlow API.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 and TypeScript
+- Vite 8
+- TanStack Router
+- TanStack Query
+- Tailwind CSS 4
+- shadcn/ui primitives built on Radix UI
+- React Hook Form and Zod
+- Recharts
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Admin authentication and centralized unauthorized-session handling
+- Revenue, booking, customer, and tour dashboard metrics
+- Category, tour, and activity management
+- Temporary image uploads with a 5 MB client-side limit
+- Customer and booking listings with server pagination
+- Booking status management and CSV export
+- Review publishing, hiding, and deletion
+- Responsive desktop and mobile navigation
 
-## Expanding the ESLint configuration
+## Getting started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Requirements
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+- Node.js 20.19 or newer, or Node.js 22.12 or newer
+- npm
+- A running TourFlow API
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Install dependencies:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Create `.env.local` in the project root:
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```env
+VITE_FETCH_URL=http://127.0.0.1:7000
 ```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+## Commands
+
+```bash
+npm run dev      # Start Vite in development mode
+npm run lint     # Run ESLint
+npm run build    # Type-check and create a production build
+npm run preview  # Preview the production build
+```
+
+## Project structure
+
+```text
+src/
+├── app/                  # Router, providers, navigation, and app layout logic
+├── components/           # Shared application components
+│   └── ui/               # shadcn/ui primitives with lowercase filenames
+├── features/             # Feature-owned API, types, queries, and components
+│   ├── activities/
+│   ├── auth/
+│   ├── bookings/
+│   ├── categories/
+│   ├── customers/
+│   ├── dashboard/
+│   ├── reviews/
+│   └── tours/
+├── hooks/                # Shared React hooks
+├── lib/                  # API client, auth session, and shared utilities
+├── index.css             # Tailwind theme and global styles
+└── main.tsx              # Application bootstrap
+```
+
+Feature folders own their API functions, response/request types, query options,
+and user interface. Shared primitives remain under `src/components`, while
+application wiring remains under `src/app`.
+
+## Data and authentication
+
+All HTTP requests go through `src/lib/api/client.ts`. The API client attaches
+the admin token using `x-access-token`. A `401` response clears the session and
+returns the administrator to `/login`.
+
+Listing screens display one-based page numbers and convert them to the API's
+zero-based pagination in their query parameters.
+
+Do not commit `.env.local` or other environment files.
