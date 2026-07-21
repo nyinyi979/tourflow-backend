@@ -264,7 +264,17 @@ export default function ReviewsPage() {
         title={`Delete ${deleting?.customerName ?? "customer"}’s review?`}
         description="This permanently removes the review and updates the related tour’s review totals. This action cannot be undone."
         pending={deleteMutation.isPending}
-        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        error={
+          deleteMutation.error instanceof Error
+            ? deleteMutation.error.message
+            : undefined
+        }
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleting(null);
+            deleteMutation.reset();
+          }
+        }}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
       />
     </>

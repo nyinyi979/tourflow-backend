@@ -250,7 +250,17 @@ export default function CategoriesPage() {
         title={`Delete “${deleting?.label ?? "category"}”?`}
         description="This permanently removes the category. Categories that are still used by tours or activities cannot be deleted."
         pending={deleteMutation.isPending}
-        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        error={
+          deleteMutation.error instanceof Error
+            ? deleteMutation.error.message
+            : undefined
+        }
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleting(null);
+            deleteMutation.reset();
+          }
+        }}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
       />
     </>

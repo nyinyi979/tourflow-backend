@@ -266,7 +266,17 @@ export default function ActivitiesPage() {
         title={`Delete “${deleting?.title ?? "activity"}”?`}
         description="This permanently removes the activity, its included items, highlights, and images. This action cannot be undone."
         pending={deleteMutation.isPending}
-        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        error={
+          deleteMutation.error instanceof Error
+            ? deleteMutation.error.message
+            : undefined
+        }
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleting(null);
+            deleteMutation.reset();
+          }
+        }}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
       />
     </>

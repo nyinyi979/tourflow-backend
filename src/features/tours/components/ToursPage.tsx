@@ -288,7 +288,17 @@ export default function ToursPage() {
         title={`Delete “${deleting?.title ?? "tour"}”?`}
         description="This permanently removes the tour, its itinerary, highlights, and images. This action cannot be undone."
         pending={deleteMutation.isPending}
-        onOpenChange={(nextOpen) => !nextOpen && setDeleting(null)}
+        error={
+          deleteMutation.error instanceof Error
+            ? deleteMutation.error.message
+            : undefined
+        }
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleting(null);
+            deleteMutation.reset();
+          }
+        }}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
       />
     </>
